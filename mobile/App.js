@@ -15,15 +15,8 @@ import {
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 
-// ⚠️ Remplace par l'URL publique de ton serveur backend une fois déployé
-// (voir backend/README.md). En développement avec `expo start`, tu peux
-// mettre l'IP locale de ton PC, ex: "http://192.168.1.20:5000".
 const API_URL = "http://51.255.46.216:5000";
 
-// Depuis Expo SDK 53, le simple fait de CHARGER le module expo-notifications
-// fait planter Expo Go sur Android (pas seulement l'utiliser). On évite donc
-// de l'importer du tout dans ce cas précis, via un require conditionnel :
-// dans une vraie app buildée (eas build), Notifications est toujours chargé.
 const NOTIFICATIONS_INDISPONIBLES =
   Constants.executionEnvironment === "storeClient" && Platform.OS === "android";
 
@@ -51,9 +44,7 @@ export default function App() {
 
   useEffect(() => {
     enregistrerPourNotifications().then(setPushToken);
-
     if (NOTIFICATIONS_INDISPONIBLES) return;
-
     const abonnement = Notifications.addNotificationResponseReceivedListener((reponse) => {
       const url = reponse.notification.request.content.data?.url;
       if (url) Linking.openURL(url);
@@ -66,38 +57,24 @@ export default function App() {
   }, [pushToken]);
 
   async function enregistrerPourNotifications() {
-    if (!Device.isDevice) {
-      Alert.alert("Notifications", "Les notifications push nécessitent un vrai appareil (pas un simulateur).");
-      return null;
-    }
-
+    if (!Device.isDevice) return null;
     if (NOTIFICATIONS_INDISPONIBLES) {
-      console.warn(
-        "Notifications push indisponibles dans Expo Go sur Android (depuis SDK 53). " +
-        "Tu peux quand même tester l'ajout/suppression de recherches ici. " +
-        "Pour recevoir les vraies alertes, installe l'APK généré par eas build."
-      );
+      console.warn("Notifications indisponibles dans Expo Go sur Android (SDK 53+).");
       return null;
     }
-
     const { status: existant } = await Notifications.getPermissionsAsync();
     let statutFinal = existant;
     if (existant !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       statutFinal = status;
     }
-    if (statutFinal !== "granted") {
-      Alert.alert("Notifications désactivées", "Active les notifications pour recevoir les alertes Vinted.");
-      return null;
-    }
-
+    if (statutFinal !== "granted") return null;
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",
         importance: Notifications.AndroidImportance.HIGH,
       });
     }
-
     try {
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
       const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
@@ -138,81 +115,39 @@ export default function App() {
           taille: taille || null,
         }),
       });
-      setMotsCles("");
-      setNom("");
-      setPrixMax("");
-      setMarque("");
-      setTaille("");
+      setMotsCles(""); setNom(""); setPrixMax(""); setMarque(""); setTaille("");
       chargerRecherches(identifiant);
     } catch (e) {
-      Alert.alert("Erreur", "Impossible d'ajouter la recherche. Vérifie que l'URL du serveur (API_URL) est correcte.");
+      Alert.alert("Erreur", "Impossible d'ajouter la recherche.");
     } finally {
       setChargement(false);
     }
   }, [pushToken, motsCles, nom, prixMax, marque, taille]);
 
-  const supprimerRecherche = useCallback(
-    async (id) => {
-      const identifiant = pushToken || `anonyme-${Device.osInternalBuildId || Date.now()}`;
-      try {
-        await fetch(`${API_URL}/api/searches/${id}?push_token=${encodeURIComponent(identifiant)}`, {
-          method: "DELETE",
-        });
-        chargerRecherches(identifiant);
-      } catch (e) {
-        Alert.alert("Erreur", "Impossible de supprimer la recherche.");
-      }
-    },
-    [pushToken]
-  );
+  const supprimerRecherche = useCallback(async (id) => {
+    const identifiant = pushToken || `anonyme-${Device.osInternalBuildId || Date.now()}`;
+    try {
+      await fetch(`${API_URL}/api/searches/${id}?push_token=${encodeURIComponent(identifiant)}`, { method: "DELETE" });
+      chargerRecherches(identifiant);
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible de supprimer la recherche.");
+    }
+  }, [pushToken]);
 
   return (
     <SafeAreaView style={styles.conteneur}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.titre}>🔎 Alertes Vinted</Text>
-
         <View style={styles.formulaire}>
-          <TextInput
-            style={styles.champ}
-            placeholder="Mots-clés (ex: nike air max)"
-            placeholderTextColor="#64748b"
-            value={motsCles}
-            onChangeText={setMotsCles}
-          />
-          <TextInput
-            style={styles.champ}
-            placeholder="Nom de la recherche (optionnel)"
-            placeholderTextColor="#64748b"
-            value={nom}
-            onChangeText={setNom}
-          />
-          <TextInput
-            style={styles.champ}
-            placeholder="Prix max en € (optionnel)"
-            placeholderTextColor="#64748b"
-            value={prixMax}
-            onChangeText={setPrixMax}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={styles.champ}
-            placeholder="Marque (optionnel)"
-            placeholderTextColor="#64748b"
-            value={marque}
-            onChangeText={setMarque}
-          />
-          <TextInput
-            style={styles.champ}
-            placeholder="Taille (optionnel)"
-            placeholderTextColor="#64748b"
-            value={taille}
-            onChangeText={setTaille}
-          />
+          <TextInput style={styles.champ} placeholder="Mots-clés (ex: nike air max)" placeholderTextColor="#64748b" value={motsCles} onChangeText={setMotsCles} />
+          <TextInput style={styles.champ} placeholder="Nom de la recherche (optionnel)" placeholderTextColor="#64748b" value={nom} onChangeText={setNom} />
+          <TextInput style={styles.champ} placeholder="Prix max en € (optionnel)" placeholderTextColor="#64748b" value={prixMax} onChangeText={setPrixMax} keyboardType="numeric" />
+          <TextInput style={styles.champ} placeholder="Marque (optionnel)" placeholderTextColor="#64748b" value={marque} onChangeText={setMarque} />
+          <TextInput style={styles.champ} placeholder="Taille (optionnel)" placeholderTextColor="#64748b" value={taille} onChangeText={setTaille} />
           <TouchableOpacity style={styles.bouton} onPress={ajouterRecherche} disabled={chargement}>
             <Text style={styles.boutonTexte}>{chargement ? "Ajout..." : "➕ Ajouter la recherche"}</Text>
           </TouchableOpacity>
         </View>
-
         <Text style={styles.sousTitre}>Mes recherches actives</Text>
         <FlatList
           data={recherches}
@@ -223,10 +158,7 @@ export default function App() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.carteTitre}>{item.nom}</Text>
                 <Text style={styles.carteDetail}>
-                  {item.mots_cles}
-                  {item.prix_max ? ` · max ${item.prix_max}€` : ""}
-                  {item.marque ? ` · ${item.marque}` : ""}
-                  {item.taille ? ` · taille ${item.taille}` : ""}
+                  {item.mots_cles}{item.prix_max ? ` · max ${item.prix_max}€` : ""}{item.marque ? ` · ${item.marque}` : ""}{item.taille ? ` · taille ${item.taille}` : ""}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => supprimerRecherche(item.id)}>
@@ -246,27 +178,11 @@ const styles = StyleSheet.create({
   scroll: { padding: 20, paddingTop: 60, paddingBottom: 60 },
   titre: { fontSize: 26, fontWeight: "700", color: "#fff", marginBottom: 20 },
   formulaire: { backgroundColor: "#1e293b", borderRadius: 14, padding: 16, marginBottom: 24 },
-  champ: {
-    backgroundColor: "#0f172a",
-    color: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
+  champ: { backgroundColor: "#0f172a", color: "#fff", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
   bouton: { backgroundColor: "#22c55e", borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 4 },
   boutonTexte: { color: "#04240f", fontWeight: "700" },
   sousTitre: { fontSize: 18, fontWeight: "600", color: "#fff", marginBottom: 10 },
-  carte: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-  },
+  carte: { flexDirection: "row", alignItems: "center", backgroundColor: "#1e293b", borderRadius: 12, padding: 14, marginBottom: 10 },
   carteTitre: { color: "#fff", fontWeight: "600", fontSize: 15 },
   carteDetail: { color: "#94a3b8", marginTop: 4, fontSize: 13 },
   supprimer: { fontSize: 18, marginLeft: 10 },
