@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Alertes Vinted",
+    "slug": "alertes-vinted",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0f172a"
+    },
+    "android": {
+      "package": "com.tonpseudo.alertesvinted",
+      "permissions": ["NOTIFICATIONS"],
+      "usesCleartextTraffic": true
+    },
+    "ios": {
+      "bundleIdentifier": "com.tonpseudo.alertesvinted",
+      "supportsTablet": false
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#22c55e"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REMPLACE_PAR_TON_PROJECT_ID"
+      }
+    }
+  }
+}
