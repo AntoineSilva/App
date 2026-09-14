@@ -21,13 +21,21 @@ import Constants from "expo-constants";
 // mettre l'IP locale de ton PC, ex: "http://192.168.1.20:5000".
 const API_URL = "http://51.255.46.216:5000";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Depuis Expo SDK 53, les notifications push à distance ne fonctionnent plus
+// dans Expo Go sur Android. On détecte ce cas pour éviter que l'app plante :
+// dans une vraie app buildée (eas build), cette variable est toujours false.
+const NOTIFICATIONS_INDISPONIBLES =
+  Constants.executionEnvironment === "storeClient" && Platform.OS === "android";
+
+if (!NOTIFICATIONS_INDISPONIBLES) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export default function App() {
   const [pushToken, setPushToken] = useState(null);
@@ -41,6 +49,8 @@ export default function App() {
 
   useEffect(() => {
     enregistrerPourNotifications().then(setPushToken);
+
+    if (NOTIFICATIONS_INDISPONIBLES) return;
 
     const abonnement = Notifications.addNotificationResponseReceivedListener((reponse) => {
       const url = reponse.notification.request.content.data?.url;
@@ -56,6 +66,15 @@ export default function App() {
   async function enregistrerPourNotifications() {
     if (!Device.isDevice) {
       Alert.alert("Notifications", "Les notifications push nécessitent un vrai appareil (pas un simulateur).");
+      return null;
+    }
+
+    if (NOTIFICATIONS_INDISPONIBLES) {
+      console.warn(
+        "Notifications push indisponibles dans Expo Go sur Android (depuis SDK 53). " +
+        "Tu peux quand même tester l'ajout/suppression de recherches ici. " +
+        "Pour recevoir les vraies alertes, installe l'APK généré par eas build."
+      );
       return null;
     }
 
@@ -98,21 +117,18 @@ export default function App() {
   }
 
   const ajouterRecherche = useCallback(async () => {
-    if (!pushToken) {
-      Alert.alert("Patiente", "Les notifications ne sont pas encore prêtes, réessaie dans un instant.");
-      return;
-    }
     if (!motsCles.trim()) {
       Alert.alert("Mots-clés manquants", "Indique au moins un mot-clé à rechercher.");
       return;
     }
+    const identifiant = pushToken || `anonyme-${Device.osInternalBuildId || Date.now()}`;
     setChargement(true);
     try {
       await fetch(`${API_URL}/api/searches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          push_token: pushToken,
+          push_token: identifiant,
           nom: nom || motsCles,
           mots_cles: motsCles,
           prix_max: prixMax ? parseFloat(prixMax) : null,
@@ -125,7 +141,7 @@ export default function App() {
       setPrixMax("");
       setMarque("");
       setTaille("");
-      chargerRecherches(pushToken);
+      chargerRecherches(identifiant);
     } catch (e) {
       Alert.alert("Erreur", "Impossible d'ajouter la recherche. Vérifie que l'URL du serveur (API_URL) est correcte.");
     } finally {
@@ -135,12 +151,12 @@ export default function App() {
 
   const supprimerRecherche = useCallback(
     async (id) => {
-      if (!pushToken) return;
+      const identifiant = pushToken || `anonyme-${Device.osInternalBuildId || Date.now()}`;
       try {
-        await fetch(`${API_URL}/api/searches/${id}?push_token=${encodeURIComponent(pushToken)}`, {
+        await fetch(`${API_URL}/api/searches/${id}?push_token=${encodeURIComponent(identifiant)}`, {
           method: "DELETE",
         });
-        chargerRecherches(pushToken);
+        chargerRecherches(identifiant);
       } catch (e) {
         Alert.alert("Erreur", "Impossible de supprimer la recherche.");
       }
