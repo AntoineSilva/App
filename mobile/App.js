@@ -19,7 +19,7 @@ import Constants from "expo-constants";
 // ⚠️ Remplace par l'URL publique de ton serveur backend une fois déployé
 // (voir backend/README.md). En développement avec `expo start`, tu peux
 // mettre l'IP locale de ton PC, ex: "http://192.168.1.20:5000".
-const API_URL = "https://TON-BACKEND.exemple.com";
+const API_URL = "http://51.255.46.216:5000";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
