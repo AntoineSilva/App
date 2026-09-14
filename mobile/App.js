@@ -12,7 +12,6 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 
@@ -21,13 +20,16 @@ import Constants from "expo-constants";
 // mettre l'IP locale de ton PC, ex: "http://192.168.1.20:5000".
 const API_URL = "http://51.255.46.216:5000";
 
-// Depuis Expo SDK 53, les notifications push à distance ne fonctionnent plus
-// dans Expo Go sur Android. On détecte ce cas pour éviter que l'app plante :
-// dans une vraie app buildée (eas build), cette variable est toujours false.
+// Depuis Expo SDK 53, le simple fait de CHARGER le module expo-notifications
+// fait planter Expo Go sur Android (pas seulement l'utiliser). On évite donc
+// de l'importer du tout dans ce cas précis, via un require conditionnel :
+// dans une vraie app buildée (eas build), Notifications est toujours chargé.
 const NOTIFICATIONS_INDISPONIBLES =
   Constants.executionEnvironment === "storeClient" && Platform.OS === "android";
 
-if (!NOTIFICATIONS_INDISPONIBLES) {
+const Notifications = NOTIFICATIONS_INDISPONIBLES ? null : require("expo-notifications");
+
+if (Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
